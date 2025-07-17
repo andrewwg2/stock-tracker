@@ -1,39 +1,58 @@
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import React from 'react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import type { Trade } from '../types';
+import { transformTradesForChart } from '../utils';
 
-type Trade = {
-  symbol: string;
-  quantity: number;
-  buyPrice: number;
-  buyDate: string;
-  sellPrice?: number;
-  sellDate?: string;
-};
+interface GainChartProps {
+  trades: Trade[];
+}
 
-export default function GainChart({ trades }: { trades: Trade[] }) {
-  const gainData = trades
-    .filter(t => t.sellPrice && t.sellDate)
-    .map(t => ({
-      date: t.sellDate!,
-      gain: parseFloat(((t.sellPrice! - t.buyPrice) * t.quantity).toFixed(2)),
-    }))
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+export function GainChart({ trades }: GainChartProps) {
+  const chartData = transformTradesForChart(trades);
+
+  if (chartData.length === 0) {
+    return (
+      <div className="mt-8">
+        <h3 className="text-lg font-semibold mb-4">Gain/Loss Over Time</h3>
+        <div className="text-center py-8 text-gray-500">
+          <p>No closed trades yet.</p>
+          <p className="text-sm mt-1">Complete some trades to see your performance chart.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mt-8">
-      <h3 className="text-lg font-semibold mb-2">Gain/Loss Over Time</h3>
-      {gainData.length === 0 ? (
-        <p className="text-sm text-gray-500">No closed trades yet.</p>
-      ) : (
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={gainData}>
+      <h3 className="text-lg font-semibold mb-4">Gain/Loss Over Time</h3>
+      <div className="h-80">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="date" />
-            <YAxis />
-            <Tooltip />
-            <Line type="monotone" dataKey="gain" stroke="#3b82f6" strokeWidth={2} />
+            <XAxis 
+              dataKey="date" 
+              tick={{ fontSize: 12 }}
+              tickFormatter={(value) => new Date(value).toLocaleDateString()}
+            />
+            <YAxis 
+              tick={{ fontSize: 12 }}
+              tickFormatter={(value) => `$${value.toFixed(0)}`}
+            />
+            <Tooltip 
+              formatter={(value: number) => [`$${value.toFixed(2)}`, 'Gain/Loss']}
+              labelFormatter={(label) => `Date: ${new Date(label).toLocaleDateString()}`}
+            />
+            <Line 
+              type="monotone" 
+              dataKey="gain" 
+              stroke="#3b82f6" 
+              strokeWidth={2}
+              dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}
+              activeDot={{ r: 6 }}
+            />
           </LineChart>
         </ResponsiveContainer>
-      )}
+      </div>
     </div>
   );
 }
