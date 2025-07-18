@@ -11,7 +11,7 @@ import { useTrades } from './hooks';
 
 function App() {
   const { 
-    trades, 
+    tradeDTOs: trades, 
     addTrade, 
     sellTrade, 
     clearAllTrades, 

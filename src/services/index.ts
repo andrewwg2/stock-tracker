@@ -1,3 +1,3 @@
-export * from './stockApi';
-export * from './storageService';
 export * from './tradeService';
+export * from './stockApiService';
+export * from './storageService';
