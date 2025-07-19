@@ -47,7 +47,7 @@ describe('useTrades', () => {
     (tradeService.getTradesWithFilter as vi.Mock).mockReturnValue({ trades: [], totalCount: 0, totalValue: 0, totalGain: 0 });
 
     const { result } = renderHook(() => useTrades());
-    expect(result.current.tradeDTOs).toEqual([]);
+    expect(result.current.trades).toEqual([]);
     expect(result.current.tradesList?.trades).toEqual([]);
   });
 
@@ -58,8 +58,8 @@ describe('useTrades', () => {
 
     const { result } = renderHook(() => useTrades());
 
-    expect(result.current.tradeDTOs.length).toBe(1);
-    expect(result.current.tradeDTOs[0]).toEqual(sampleTrade);
+    expect(result.current.trades.length).toBe(1);
+    expect(result.current.trades[0]).toEqual(sampleTrade);
     expect(result.current.tradesList?.trades.length).toBe(1);
   });
 
@@ -90,8 +90,8 @@ describe('useTrades', () => {
     });
 
     expect(storageService.saveTradeDTO).toHaveBeenCalledWith(createdTrade);
-    expect(result.current.tradeDTOs.length).toBe(1);
-    expect(result.current.tradeDTOs[0]).toEqual(createdTrade);
+    expect(result.current.trades.length).toBe(1);
+    expect(result.current.trades[0]).toEqual(createdTrade);
   });
 
   it('should clear all trades', () => {
@@ -106,7 +106,7 @@ describe('useTrades', () => {
     });
 
     expect(storageService.clearTrades).toHaveBeenCalled();
-    expect(result.current.tradeDTOs).toEqual([]);
+    expect(result.current.trades).toEqual([]);
     expect(result.current.tradesList?.trades).toEqual([]);
   });
 });

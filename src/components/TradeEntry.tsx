@@ -1,18 +1,18 @@
 import React, { useState } from 'react';
-import type { Trade } from '../types';
-import { useStockPrice } from '../hooks';
+import type { TradeDTO } from '../dto';
+import { usePrice } from '../hooks/usePrice';
 import { formatCurrency, formatDate, formatGain } from '../utils';
 import { tradeService } from '../services';
 
 interface TradeEntryProps {
-  trade: Trade;
+  trade: TradeDTO;
   onSell: (tradeId: string, sellPrice: number) => void;
 }
 
 export function TradeEntry({ trade, onSell }: TradeEntryProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [currentPrice, setCurrentPrice] = useState<number | null>(null);
-  const { fetchPrice, isLoading: isFetchingPrice, error: priceError } = useStockPrice();
+  const { fetchPrice, isLoading: isFetchingPrice, error: priceError } = usePrice();
 
   const handleFetchPrice = async () => {
     const price = await fetchPrice(trade.symbol);
@@ -28,7 +28,7 @@ export function TradeEntry({ trade, onSell }: TradeEntryProps) {
     }
   };
 
-  const isOpen = tradeService.isTradeOpen(trade);
+  const isOpen = !trade.sellPrice;
   const gain = tradeService.calculateGain(trade);
   const isPositiveGain = gain >= 0;
 
