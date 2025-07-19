@@ -173,7 +173,10 @@ export function useTrades(): UseTradesReturn {
   // Sell a trade
   const sellTrade = (tradeId: string, sellPrice: number) => {
     try {
-      updateTrade(tradeId, { sellPrice, sellDate: new Date().toLocaleDateString() });
+      updateTrade(tradeId, {
+        sellPrice, sellDate: new Date().toLocaleDateString(),
+        id: ''
+      });
       setError(null);
     } catch (err) {
       setError('Failed to sell trade');

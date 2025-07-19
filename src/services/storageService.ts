@@ -1,6 +1,6 @@
 import type { Trade } from '../types';
 import type { TradeDTO } from '../dto';
-import type { TradeMapper } from '../mappers';
+import { TradeMapper } from '../mappers';
 
 /**
  * Enhanced Storage Service interface with DTO support
@@ -58,7 +58,7 @@ class LocalStorageService implements StorageService {
     const trades = this.loadTrades();
     
     // Remove extra properties from DTO that aren't part of the domain model
-    const { currentValue, gain, gainPercentage, isOpen, ...domainTrade } = trade;
+    const {  ...domainTrade } = trade;
     
     // Add the new trade to the array
     trades.push(domainTrade as Trade);
@@ -74,7 +74,7 @@ class LocalStorageService implements StorageService {
     if (index === -1) return false;
     
     // Remove extra properties from DTO that aren't part of the domain model
-    const { currentValue, gain, gainPercentage, isOpen, ...domainTrade } = trade;
+    const {  ...domainTrade } = trade;
     
     // Update the trade
     trades[index] = domainTrade as Trade;
