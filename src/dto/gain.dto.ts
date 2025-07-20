@@ -1,15 +1,14 @@
 /**
- * Data Transfer Object for Trade Gain Data
+ * Gain and Performance-related Data Transfer Objects
  */
+
 export interface TradeGainDTO {
   date: string;
   gain: number;
   symbol: string;
+  tradeid?: string;
 }
 
-/**
- * DTO for Portfolio Performance
- */
 export interface PortfolioPerformanceDTO {
   totalInvestment: number;
   currentValue: number;
@@ -18,29 +17,27 @@ export interface PortfolioPerformanceDTO {
   tradeCount: number;
   openTradeCount: number;
   closedTradeCount: number;
+  realizedGain: number;
+  unrealizedGain: number;
 }
 
-/**
- * DTO for time-based performance data
- */
 export interface TimePerformanceDataPointDTO {
   date: string;
   value: number;
+  gain: number;
+  cumulativeGain: number;
 }
 
-/**
- * DTO for performance over time
- */
 export interface PerformanceOverTimeDTO {
   startDate: string;
   endDate: string;
   dataPoints: TimePerformanceDataPointDTO[];
   overallGainPercentage: number;
+  volatility: number;
+  maxDrawdown: number;
+  sharpeRatio: number;
 }
 
-/**
- * DTO for symbol-based performance summary
- */
 export interface SymbolPerformanceDTO {
   symbol: string;
   investment: number;
@@ -48,4 +45,34 @@ export interface SymbolPerformanceDTO {
   gain: number;
   gainPercentage: number;
   tradeCount: number;
+  averageHoldingPeriod: number;
+  winRate: number;
+}
+
+export interface PortfolioCompositionDTO {
+  symbol: string;
+  allocation: number; // percentage
+  value: number;
+  quantity: number;
+  averagePrice: number;
+}
+
+export interface RiskMetricsDTO {
+  volatility: number;
+  sharpeRatio: number;
+  maxDrawdown: number;
+  beta?: number;
+  alpha?: number;
+  valueAtRisk: number;
+}
+
+export interface PerformanceComparisonDTO {
+  period: string;
+  portfolioReturn: number;
+  benchmarkReturn?: number;
+  outperformance?: number;
+  winningTrades: number;
+  losingTrades: number;
+  averageWin: number;
+  averageLoss: number;
 }

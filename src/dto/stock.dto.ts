@@ -1,6 +1,7 @@
 /**
- * Data Transfer Object for Stock Quote
+ * Stock-related Data Transfer Objects
  */
+
 export interface StockQuoteDTO {
   symbol: string;
   price: number;
@@ -13,25 +14,16 @@ export interface StockQuoteDTO {
   volume?: number;
 }
 
-/**
- * DTO for Stock Price Request
- */
 export interface StockPriceRequestDTO {
   symbol: string;
   refresh?: boolean;
 }
 
-/**
- * DTO for Stock Search
- */
 export interface StockSearchRequestDTO {
   query: string;
   limit?: number;
 }
 
-/**
- * DTO for Stock Search Result
- */
 export interface StockSearchResultDTO {
   symbol: string;
   name: string;
@@ -40,9 +32,6 @@ export interface StockSearchResultDTO {
   currency: string;
 }
 
-/**
- * DTO for historical stock data
- */
 export interface HistoricalPricePointDTO {
   date: string;
   open: number;
@@ -52,11 +41,21 @@ export interface HistoricalPricePointDTO {
   volume: number;
 }
 
-/**
- * DTO for historical price data response
- */
 export interface HistoricalPriceDataDTO {
   symbol: string;
-  timeframe: string; // daily, weekly, monthly
+  timeframe: string;
   data: HistoricalPricePointDTO[];
+}
+
+export interface BatchStockQuoteRequestDTO {
+  symbols: string[];
+  forceRefresh?: boolean;
+}
+
+export interface BatchStockQuoteResponseDTO {
+  quotes: StockQuoteDTO[];
+  errors: Array<{
+    symbol: string;
+    error: string;
+  }>;
 }

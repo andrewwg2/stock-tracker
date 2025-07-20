@@ -1,69 +1,90 @@
-import type { Trade } from '../types';
-import type { TradeDTO } from '../dto';
-import { TradeMapper } from '../mappers';
-
 /**
- * Enhanced Storage Service interface with DTO support
+ * Storage Service
+ * Handles localStorage operations for trades and cache management
  */
+
+import type { Trade, CacheEntry } from '../types';
+import type { TradeDTO } from '../dto';
+import { STORAGE_KEYS, CACHE_DURATION } from '../utils';
+
 export interface StorageService {
-  // Original methods
+  // Trade operations
   saveTrades(trades: Trade[]): void;
   loadTrades(): Trade[];
   clearTrades(): void;
-  
-  // New DTO-based methods
   saveTradeDTO(trade: TradeDTO): void;
   updateTradeDTO(trade: TradeDTO): boolean;
   deleteTradeById(id: string): boolean;
   getTradeById(id: string): TradeDTO | null;
-  saveCache<T>(key: string, data: T, expirationMinutes?: number): void;
-  loadCache<T>(key: string): { data: T | null, expired: boolean };
+  
+  // Cache operations
+  saveCache<T>(key: string, data: T, expirationMs?: number): void;
+  loadCache<T>(key: string): CacheEntry<T>;
   clearCache(key?: string): void;
+  clearAllCache(): void;
+  
+  // User preferences
+  savePreferences(preferences: Record<string, unknown>): void;
+  loadPreferences(): Record<string, unknown>;
+  
+  // Utilities
+  getStorageInfo(): { used: number; available: number };
+  exportData(): string;
+  importData(data: string): boolean;
 }
 
 class LocalStorageService implements StorageService {
-  private readonly tradeStorageKey = 'simulated-stock-trades';
-  private readonly cacheKeyPrefix = 'stock-tracker-cache-';
-  
-  // Original methods
+  private readonly maxCacheAge = CACHE_DURATION;
+
+  // Trade operations
   saveTrades(trades: Trade[]): void {
     try {
       const serializedTrades = JSON.stringify(trades);
-      localStorage.setItem(this.tradeStorageKey, serializedTrades);
+      localStorage.setItem(STORAGE_KEYS.TRADES, serializedTrades);
     } catch (error) {
-      console.error('Failed to save trades to localStorage:', error);
+      console.error('Failed to save trades:', error);
+      this.handleStorageError(error);
     }
   }
 
   loadTrades(): Trade[] {
     try {
-      const stored = localStorage.getItem(this.tradeStorageKey);
-      return stored ? JSON.parse(stored) : [];
+      const stored = localStorage.getItem(STORAGE_KEYS.TRADES);
+      if (!stored) {
+        return [];
+      }
+      
+      const parsed = JSON.parse(stored);
+      return Array.isArray(parsed) ? parsed : [];
     } catch (error) {
-      console.error('Failed to load trades from localStorage:', error);
+      console.error('Failed to load trades:', error);
       return [];
     }
   }
 
   clearTrades(): void {
     try {
-      localStorage.removeItem(this.tradeStorageKey);
+      localStorage.removeItem(STORAGE_KEYS.TRADES);
     } catch (error) {
-      console.error('Failed to clear trades from localStorage:', error);
+      console.error('Failed to clear trades:', error);
     }
   }
 
-  // New DTO-based methods
   saveTradeDTO(trade: TradeDTO): void {
     const trades = this.loadTrades();
     
-    // Remove extra properties from DTO that aren't part of the domain model
-    const {  ...domainTrade } = trade;
+    // Convert DTO to domain model (remove computed fields)
+    const domainTrade: Trade = {
+      id: trade.id,
+      symbol: trade.symbol,
+      quantity: trade.quantity,
+      buyPrice: trade.buyPrice,
+      buyDate: trade.buyDate,
+      sellPrice: trade.sellPrice,
+      sellDate: trade.sellDate,
+    };
     
-    // Add the new trade to the array
-    trades.push(domainTrade as Trade);
-    
-    // Save the updated array
+    trades.push(domainTrade);
     this.saveTrades(trades);
   }
 
@@ -71,15 +92,22 @@ class LocalStorageService implements StorageService {
     const trades = this.loadTrades();
     const index = trades.findIndex(t => t.id === trade.id);
     
-    if (index === -1) return false;
+    if (index === -1) {
+      return false;
+    }
     
-    // Remove extra properties from DTO that aren't part of the domain model
-    const {  ...domainTrade } = trade;
+    // Convert DTO to domain model (remove computed fields)
+    const domainTrade: Trade = {
+      id: trade.id,
+      symbol: trade.symbol,
+      quantity: trade.quantity,
+      buyPrice: trade.buyPrice,
+      buyDate: trade.buyDate,
+      sellPrice: trade.sellPrice,
+      sellDate: trade.sellDate,
+    };
     
-    // Update the trade
-    trades[index] = domainTrade as Trade;
-    
-    // Save the updated array
+    trades[index] = domainTrade;
     this.saveTrades(trades);
     return true;
   }
@@ -91,7 +119,7 @@ class LocalStorageService implements StorageService {
     const filteredTrades = trades.filter(trade => trade.id !== id);
     
     if (filteredTrades.length === initialLength) {
-      return false; // No trade was deleted
+      return false;
     }
     
     this.saveTrades(filteredTrades);
@@ -102,65 +130,191 @@ class LocalStorageService implements StorageService {
     const trades = this.loadTrades();
     const trade = trades.find(t => t.id === id);
     
-    if (!trade) return null;
+    if (!trade) {
+      return null;
+    }
     
-    return TradeMapper.toDTO(trade);
+    // Convert to DTO
+    return this.tradeToDTO(trade);
   }
 
-  saveCache<T>(key: string, data: T, expirationMinutes: number = 15): void {
+  // Cache operations
+  saveCache<T>(key: string, data: T, expirationMs: number = this.maxCacheAge): void {
     try {
       const cacheItem = {
         data,
         timestamp: Date.now(),
-        expiration: expirationMinutes * 60 * 1000 // Convert minutes to milliseconds
+        expirationMs,
       };
       
-      localStorage.setItem(this.cacheKeyPrefix + key, JSON.stringify(cacheItem));
+      const cacheKey = `${STORAGE_KEYS.CACHE_PREFIX}${key}`;
+      localStorage.setItem(cacheKey, JSON.stringify(cacheItem));
     } catch (error) {
       console.error(`Failed to save cache for key ${key}:`, error);
+      this.handleStorageError(error);
     }
   }
 
-  loadCache<T>(key: string): { data: T | null, expired: boolean } {
+  loadCache<T>(key: string): CacheEntry<T> {
     try {
-      const stored = localStorage.getItem(this.cacheKeyPrefix + key);
+      const cacheKey = `${STORAGE_KEYS.CACHE_PREFIX}${key}`;
+      const stored = localStorage.getItem(cacheKey);
       
       if (!stored) {
-        return { data: null, expired: true };
+        return { data: null, timestamp: 0, expired: true };
       }
       
       const cacheItem = JSON.parse(stored);
       const now = Date.now();
       const elapsed = now - cacheItem.timestamp;
-      const expired = elapsed > cacheItem.expiration;
+      const expired = elapsed > (cacheItem.expirationMs || this.maxCacheAge);
       
       return {
-        data: cacheItem.data as T,
-        expired
+        data: expired ? null : cacheItem.data as T,
+        timestamp: cacheItem.timestamp,
+        expired,
       };
     } catch (error) {
       console.error(`Failed to load cache for key ${key}:`, error);
-      return { data: null, expired: true };
+      return { data: null, timestamp: 0, expired: true };
     }
   }
 
   clearCache(key?: string): void {
     try {
-      // Clear specific cache key
       if (key) {
-        localStorage.removeItem(this.cacheKeyPrefix + key);
+        const cacheKey = `${STORAGE_KEYS.CACHE_PREFIX}${key}`;
+        localStorage.removeItem(cacheKey);
         return;
       }
       
-      // Clear all cache items
-      for (let i = 0; i < localStorage.length; i++) {
-        const storageKey = localStorage.key(i);
-        if (storageKey?.startsWith(this.cacheKeyPrefix)) {
-          localStorage.removeItem(storageKey);
-        }
-      }
+      this.clearAllCache();
     } catch (error) {
       console.error('Failed to clear cache:', error);
+    }
+  }
+
+  clearAllCache(): void {
+    try {
+      const keysToRemove: string[] = [];
+      
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key?.startsWith(STORAGE_KEYS.CACHE_PREFIX)) {
+          keysToRemove.push(key);
+        }
+      }
+      
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+    } catch (error) {
+      console.error('Failed to clear all cache:', error);
+    }
+  }
+
+  // User preferences
+  savePreferences(preferences: Record<string, any>): void {
+    try {
+      const serialized = JSON.stringify(preferences);
+      localStorage.setItem(STORAGE_KEYS.USER_PREFERENCES, serialized);
+    } catch (error) {
+      console.error('Failed to save preferences:', error);
+    }
+  }
+
+  loadPreferences(): Record<string, any> {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.USER_PREFERENCES);
+      return stored ? JSON.parse(stored) : {};
+    } catch (error) {
+      console.error('Failed to load preferences:', error);
+      return {};
+    }
+  }
+
+  // Utilities
+  getStorageInfo(): { used: number; available: number } {
+    try {
+      // Estimate used storage
+      let used = 0;
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key) {
+          const value = localStorage.getItem(key);
+          used += key.length + (value?.length || 0);
+        }
+      }
+      
+      // Most browsers have 5-10MB limit for localStorage
+      const available = 1024 * 1024 * 5; // 5MB estimate
+      
+      return { used, available };
+    } catch (error) {
+      console.error('Failed to get storage info:', error);
+      return { used: 0, available: 0 };
+    }
+  }
+
+  exportData(): string {
+    try {
+      const trades = this.loadTrades();
+      const preferences = this.loadPreferences();
+      
+      const exportData = {
+        trades,
+        preferences,
+        exportDate: new Date().toISOString(),
+        version: '1.0',
+      };
+      
+      return JSON.stringify(exportData, null, 2);
+    } catch (error) {
+      console.error('Failed to export data:', error);
+      throw new Error('Failed to export data');
+    }
+  }
+
+  importData(data: string): boolean {
+    try {
+      const parsed = JSON.parse(data);
+      
+      // Validate data structure
+      if (!parsed.trades || !Array.isArray(parsed.trades)) {
+        throw new Error('Invalid data format');
+      }
+      
+      // Import trades
+      this.saveTrades(parsed.trades);
+      
+      // Import preferences if available
+      if (parsed.preferences) {
+        this.savePreferences(parsed.preferences);
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Failed to import data:', error);
+      return false;
+    }
+  }
+
+  // Private helpers
+  private tradeToDTO(trade: Trade): TradeDTO {
+    return {
+      id: trade.id,
+      symbol: trade.symbol,
+      quantity: trade.quantity,
+      buyPrice: trade.buyPrice,
+      buyDate: trade.buyDate,
+      sellPrice: trade.sellPrice,
+      sellDate: trade.sellDate,
+      isOpen: !trade.sellPrice,
+    };
+  }
+
+  private handleStorageError(error: any): void {
+    if (error.name === 'QuotaExceededError') {
+      console.warn('localStorage quota exceeded. Clearing cache...');
+      this.clearAllCache();
     }
   }
 }

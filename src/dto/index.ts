@@ -1,4 +1,8 @@
-// Export all DTOs from this file
+/**
+ * Data Transfer Objects for the Stock Tracker application
+ * Provides structured data interfaces for API communication
+ */
+
 export * from './trade.dto';
 export * from './stock.dto';
 export * from './gain.dto';

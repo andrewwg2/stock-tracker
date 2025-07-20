@@ -1,112 +1,197 @@
+/**
+ * useTrades Hook Tests
+ */
+
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useTrades } from './useTrades';
 import type { TradeDTO, CreateTradeDTO } from '../dto';
-import { storageService, tradeService } from '../services';
 
-vi.mock('../services', async () => {
-  const actual = await vi.importActual<typeof import('../services')>('../services');
-  return {
-    ...actual,
-    storageService: {
-      ...actual.storageService,
-      loadTrades: vi.fn(),
-      getTradeById: vi.fn(),
-      saveTradeDTO: vi.fn(),
-      updateTradeDTO: vi.fn(),
-      deleteTradeById: vi.fn(),
-      clearTrades: vi.fn()
-    },
-    tradeService: {
-      ...actual.tradeService,
-      createTradeFromDTO: vi.fn(),
-      updateTrade: vi.fn(),
-      getTradesWithFilter: vi.fn()
-    }
-  };
-});
+// Mock the trade store
+const mockTradeStore = {
+  trades: [],
+  filteredList: null,
+  isLoading: false,
+  error: null,
+  initialize: vi.fn(),
+  addTrade: vi.fn(),
+  sellTrade: vi.fn(),
+  clearAllTrades: vi.fn(),
+  filterTrades: vi.fn(),
+};
+
+// Mock the price hook
+const mockPriceHook = {
+  refreshAllPrices: vi.fn(),
+  isLoading: false,
+  error: null,
+};
+
+vi.mock('../store/tradeStore', () => ({
+  useTradeStore: vi.fn(() => mockTradeStore),
+}));
+
+vi.mock('./usePrice', () => ({
+  usePrice: vi.fn(() => mockPriceHook),
+}));
 
 const sampleTrade: TradeDTO = {
   id: 'test-id',
   symbol: 'TSLA',
   quantity: 10,
   buyPrice: 250,
-  buyDate: '2025-07-17',
+  buyDate: '2025-01-17',
   sellPrice: 280,
-  sellDate: '2025-07-18',
+  sellDate: '2025-01-18',
+  gain: 300,
+  gainPercentage: 12,
+  isOpen: false,
+  currentValue: 2800,
 };
 
-describe('useTrades', () => {
+describe('useTrades hook', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    
+    // Reset mock store state
+    mockTradeStore.trades = [];
+    mockTradeStore.filteredList = null;
+    mockTradeStore.isLoading = false;
+    mockTradeStore.error = null;
+    
+    // Reset mock price hook state
+    mockPriceHook.isLoading = false;
+    mockPriceHook.error = null;
   });
 
-  it('should initialize with empty trades when localStorage is empty', () => {
-    (storageService.loadTrades as vi.Mock).mockReturnValue([]);
-    (storageService.getTradeById as vi.Mock).mockImplementation(() => undefined);
-    (tradeService.getTradesWithFilter as vi.Mock).mockReturnValue({ trades: [], totalCount: 0, totalValue: 0, totalGain: 0 });
-
+  it('should initialize on mount', () => {
     const { result } = renderHook(() => useTrades());
+    
+    expect(mockTradeStore.initialize).toHaveBeenCalled();
     expect(result.current.trades).toEqual([]);
-    expect(result.current.tradesList?.trades).toEqual([]);
   });
 
-  it('should load trades from storage on mount', () => {
-    (storageService.loadTrades as vi.Mock).mockReturnValue([sampleTrade]);
-    (storageService.getTradeById as vi.Mock).mockReturnValue(sampleTrade);
-    (tradeService.getTradesWithFilter as vi.Mock).mockReturnValue({ trades: [sampleTrade], totalCount: 1, totalValue: 2500, totalGain: 300 });
+  it('should return trades from filtered list when available', () => {
+    mockTradeStore.filteredList = {
+      trades: [sampleTrade],
+      totalCount: 1,
+      totalValue: 2800,
+      totalGain: 300,
+      openPositions: 0,
+      closedPositions: 1,
+    };
 
     const { result } = renderHook(() => useTrades());
-
-    expect(result.current.trades.length).toBe(1);
-    expect(result.current.trades[0]).toEqual(sampleTrade);
-    expect(result.current.tradesList?.trades.length).toBe(1);
+    
+    expect(result.current.trades).toEqual([sampleTrade]);
+    expect(result.current.tradesList).toBeTruthy();
   });
 
-  it('should add a trade and refresh state', () => {
+  it('should fallback to store trades when no filtered list', () => {
+    mockTradeStore.trades = [sampleTrade];
+    mockTradeStore.filteredList = null;
+
+    const { result } = renderHook(() => useTrades());
+    
+    expect(result.current.trades).toEqual([sampleTrade]);
+  });
+
+  it('should handle add trade', async () => {
     const createDTO: CreateTradeDTO = {
       symbol: 'TSLA',
       quantity: 10,
-      buyPrice: 250
-    };
-
-    const createdTrade: TradeDTO = {
-      id: 'new-id',
-      symbol: 'TSLA',
-      quantity: 10,
       buyPrice: 250,
-      buyDate: '2025-07-17'
     };
-
-    (storageService.loadTrades as vi.Mock).mockReturnValue([]);
-    (tradeService.createTradeFromDTO as vi.Mock).mockReturnValue(createdTrade);
-    (storageService.getTradeById as vi.Mock).mockReturnValue(createdTrade);
-    (tradeService.getTradesWithFilter as vi.Mock).mockReturnValue({ trades: [createdTrade], totalCount: 1, totalValue: 2500, totalGain: 0 });
 
     const { result } = renderHook(() => useTrades());
 
-    act(() => {
-      result.current.addTrade(createDTO);
+    await act(async () => {
+      await result.current.addTrade(createDTO);
     });
 
-    expect(storageService.saveTradeDTO).toHaveBeenCalledWith(createdTrade);
-    expect(result.current.trades.length).toBe(1);
-    expect(result.current.trades[0]).toEqual(createdTrade);
+    expect(mockTradeStore.addTrade).toHaveBeenCalledWith(createDTO);
   });
 
-  it('should clear all trades', () => {
-    (storageService.loadTrades as vi.Mock).mockReturnValue([sampleTrade]);
-    (storageService.getTradeById as vi.Mock).mockReturnValue(sampleTrade);
-    (tradeService.getTradesWithFilter as vi.Mock).mockReturnValue({ trades: [sampleTrade], totalCount: 1, totalValue: 2500, totalGain: 300 });
+  it('should handle sell trade', async () => {
+    const { result } = renderHook(() => useTrades());
+
+    await act(async () => {
+      await result.current.sellTrade('test-id', 280);
+    });
+
+    expect(mockTradeStore.sellTrade).toHaveBeenCalledWith('test-id', 280);
+  });
+
+  it('should handle clear all trades', async () => {
+    const { result } = renderHook(() => useTrades());
+
+    await act(async () => {
+      await result.current.clearAllTrades();
+    });
+
+    expect(mockTradeStore.clearAllTrades).toHaveBeenCalled();
+  });
+
+  it('should handle refresh prices', async () => {
+    const { result } = renderHook(() => useTrades());
+
+    await act(async () => {
+      await result.current.refreshPrices();
+    });
+
+    expect(mockPriceHook.refreshAllPrices).toHaveBeenCalled();
+  });
+
+  it('should combine loading states', () => {
+    mockTradeStore.isLoading = true;
+    mockPriceHook.isLoading = false;
+
+    const { result } = renderHook(() => useTrades());
+    
+    expect(result.current.isLoading).toBe(true);
+  });
+
+  it('should combine error states', () => {
+    mockTradeStore.error = 'Store error';
+    mockPriceHook.error = null;
+
+    const { result } = renderHook(() => useTrades());
+    
+    expect(result.current.error).toBe('Store error');
+  });
+
+  it('should calculate computed values correctly', () => {
+    mockTradeStore.trades = [
+      { ...sampleTrade, sellPrice: undefined, sellDate: undefined, isOpen: true },
+      sampleTrade,
+    ];
+
+    const { result } = renderHook(() => useTrades());
+    
+    expect(result.current.totalTrades).toBe(2);
+    expect(result.current.hasOpenPositions).toBe(true);
+    expect(result.current.openPositions).toBe(1);
+    expect(result.current.closedPositions).toBe(1);
+  });
+
+  it('should handle errors gracefully', async () => {
+    const error = new Error('Test error');
+    mockTradeStore.addTrade.mockRejectedValue(error);
 
     const { result } = renderHook(() => useTrades());
 
-    act(() => {
-      result.current.clearAllTrades();
+    await act(async () => {
+      try {
+        await result.current.addTrade({
+          symbol: 'TSLA',
+          quantity: 10,
+          buyPrice: 250,
+        });
+      } catch (e) {
+        // Expected to throw
+      }
     });
 
-    expect(storageService.clearTrades).toHaveBeenCalled();
-    expect(result.current.trades).toEqual([]);
-    expect(result.current.tradesList?.trades).toEqual([]);
+    expect(mockTradeStore.addTrade).toHaveBeenCalled();
   });
 });

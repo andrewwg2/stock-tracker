@@ -1,6 +1,7 @@
 /**
- * Data Transfer Object for a Trade
+ * Trade-related Data Transfer Objects
  */
+
 export interface TradeDTO {
   id: string;
   symbol: string;
@@ -9,25 +10,19 @@ export interface TradeDTO {
   buyDate: string;
   sellPrice?: number;
   sellDate?: string;
-  // Additional fields for the UI
+  // Computed fields for UI
   currentValue?: number;
   gain?: number;
   gainPercentage?: number;
   isOpen?: boolean;
 }
 
-/**
- * DTO for creating a new trade
- */
 export interface CreateTradeDTO {
   symbol: string;
   quantity: number;
   buyPrice: number;
 }
 
-/**
- * DTO for updating an existing trade
- */
 export interface UpdateTradeDTO {
   id: string;
   sellPrice?: number;
@@ -36,23 +31,57 @@ export interface UpdateTradeDTO {
   buyPrice?: number;
 }
 
-/**
- * DTO for trade filtering options
- */
 export interface TradeFilterDTO {
   symbol?: string;
   openOnly?: boolean;
   closedOnly?: boolean;
   dateFrom?: string;
   dateTo?: string;
+  minGain?: number;
+  maxGain?: number;
+  sortBy?: 'date' | 'symbol' | 'gain' | 'quantity';
+  sortOrder?: 'asc' | 'desc';
 }
 
-/**
- * Trade list response with metadata
- */
 export interface TradeListResponseDTO {
   trades: TradeDTO[];
   totalCount: number;
   totalValue: number;
   totalGain: number;
+  unrealizedGain?: number;
+  realizedGain?: number;
+  openPositions: number;
+  closedPositions: number;
+}
+
+export interface TradeStatsDTO {
+  totalInvestment: number;
+  totalValue: number;
+  totalGain: number;
+  totalGainPercentage: number;
+  bestTrade?: TradeDTO;
+  worstTrade?: TradeDTO;
+  averageGainPerTrade: number;
+  winRate: number; // percentage of profitable trades
+}
+
+export interface TradeSummaryDTO {
+  trades: TradeDTO[];
+  stats: TradeStatsDTO;
+  chartData: Array<{
+    date: string;
+    value: number;
+    gain: number;
+  }>;
+}
+
+export interface ExportTradeDTO {
+  symbol: string;
+  quantity: number;
+  buyPrice: number;
+  buyDate: string;
+  sellPrice?: number;
+  sellDate?: string;
+  gain?: number;
+  gainPercentage?: number;
 }
