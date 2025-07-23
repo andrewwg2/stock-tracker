@@ -6,3 +6,4 @@
 export * from './trade.dto';
 export * from './stock.dto';
 export * from './gain.dto';
+export * from './oscillator.dto';

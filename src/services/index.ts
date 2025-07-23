@@ -8,3 +8,4 @@ export * from './stockApiService';
 export * from './storageService';
 export * from './priceService';
 export * from './analyticsService';
+export * from './oscillatorService';
