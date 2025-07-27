@@ -4,14 +4,14 @@ A comprehensive React TypeScript application for tracking stock trades and portf
 
 ## Features
 
-- 📊 **Trade Tracking**: Add, edit, and manage stock trades
-- 💰 **Portfolio Analytics**: View gains/losses, win rates, and performance metrics
-- 📈 **Data Visualization**: Interactive charts showing portfolio performance over time
-- 🎯 **Real-time Prices**: Fetch current stock prices (with API fallbacks)
-- 💾 **Local Storage**: Persistent data storage in browser
-- 📱 **Responsive Design**: Works on desktop, tablet, and mobile
-- ♿ **Accessibility**: WCAG compliant with proper ARIA labels and keyboard navigation
-- 🧪 **Test Coverage**: Comprehensive unit tests with Vitest
+- **Trade Tracking**: Add, edit, and manage stock trades
+- **Portfolio Analytics**: View gains/losses, win rates, and performance metrics
+- **Data Visualization**: Interactive charts showing portfolio performance over time
+- **Real-time Prices**: Fetch current stock prices (with API fallbacks)
+- **Local Storage**: Persistent data storage in browser
+- **Responsive Design**: Works on desktop, tablet, and mobile
+- **Accessibility**: WCAG compliant with proper ARIA labels and keyboard navigation
+- **Test Coverage**: Comprehensive unit tests with Vitest
 
 ## Technology Stack
 
