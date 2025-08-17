@@ -2,8 +2,7 @@
  * useDebounce Hook
  * Debounces a value to prevent excessive API calls or computations
  */
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 /**
  * Debounces a value by delaying its update
@@ -39,32 +38,35 @@ export const useDebounceCallback = <T extends (...args: any[]) => any>(
   delay: number,
   deps: React.DependencyList = []
 ): T => {
-  const [debounceTimer, setDebounceTimer] = useState<NodeJS.Timeout | null>(null);
+  // Use useRef to store timer instead of useState to avoid re-renders
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (debounceTimer) {
-        clearTimeout(debounceTimer);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
       }
     };
-  }, [debounceTimer]);
+  }, []);
 
-  const debouncedCallback = ((...args: Parameters<T>) => {
-    if (debounceTimer) {
-      clearTimeout(debounceTimer);
-    }
+  const debouncedCallback = useCallback(
+    ((...args: Parameters<T>) => {
+      // Clear existing timeout
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
 
-    const timer = setTimeout(() => {
-      callback(...args);
-    }, delay);
+      // Set new timeout
+      timeoutRef.current = setTimeout(() => {
+        callback(...args);
+      }, delay);
+    }) as T,
+    [callback, delay, ...deps]
+  );
 
-    setDebounceTimer(timer);
-  }) as T;
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  return React.useCallback(debouncedCallback, [delay, ...deps]);
+  return debouncedCallback;
 };
-
 /**
  * Advanced debounce hook with immediate execution option
  * @param value The value to debounce
@@ -79,41 +81,50 @@ export const useAdvancedDebounce = <T>(
 ) => {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
   const [isDebouncing, setIsDebouncing] = useState(false);
+  const timeoutRef = useRef<NodeJS.Timeout>();
+  const previousValue = useRef<T>(value);
 
   useEffect(() => {
-    if (immediate && debouncedValue !== value) {
+    // Only start debouncing if value actually changed
+    if (previousValue.current === value) {
+      return;
+    }
+    
+    previousValue.current = value;
+
+    if (immediate) {
       setDebouncedValue(value);
       setIsDebouncing(true);
       
-      const handler = setTimeout(() => {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(() => {
         setIsDebouncing(false);
       }, delay);
-
-      return () => {
-        clearTimeout(handler);
-      };
     } else {
       setIsDebouncing(true);
       
-      const handler = setTimeout(() => {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(() => {
         setDebouncedValue(value);
         setIsDebouncing(false);
       }, delay);
-
-      return () => {
-        clearTimeout(handler);
-      };
     }
+
+    return () => {
+      clearTimeout(timeoutRef.current);
+    };
   }, [value, delay, immediate]);
 
-  const cancel = () => {
+  const cancel = useCallback(() => {
+    clearTimeout(timeoutRef.current);
     setIsDebouncing(false);
-  };
+  }, []);
 
-  const flush = () => {
+  const flush = useCallback(() => {
+    clearTimeout(timeoutRef.current);
     setDebouncedValue(value);
     setIsDebouncing(false);
-  };
+  }, [value]);
 
   return {
     debouncedValue,
@@ -122,6 +133,3 @@ export const useAdvancedDebounce = <T>(
     flush,
   };
 };
-
-// React import for useCallback
-import React from 'react';

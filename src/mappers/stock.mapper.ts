@@ -1,5 +1,6 @@
 /**
  * Stock Mapper
+ * stock.mapper.ts
  * Handles mapping between Stock domain models and DTOs
  */
 
@@ -103,35 +104,38 @@ export class StockMapper {
     );
   }
 
-  /**
-   * Maps batch search results
-   */
-  static toBatchSearchResults(results: any[]): StockSearchResultDTO[] {
-    return results
-      .filter(result => result && typeof result === 'object')
-      .map(result => ({
-        symbol: String(result.symbol || '').toUpperCase(),
-        name: String(result.name || ''),
-        type: String(result.type || 'Equity'),
-        region: String(result.region || 'Unknown'),
-        currency: String(result.currency || 'USD'),
-      }))
-      .filter(result => result.symbol.length > 0);
+/**
+ * Maps batch search results
+ */
+static toBatchSearchResults(results: any[]): StockSearchResultDTO[] {
+  // Handle null/undefined input
+  if (!results || !Array.isArray(results)) {
+    return [];
   }
 
-  /**
-   * Creates batch quote response
-   */
-  static toBatchQuoteResponse(
-    quotes: StockQuoteDTO[], 
-    errors: Array<{ symbol: string; error: string }>
-  ): BatchStockQuoteResponseDTO {
-    return {
-      quotes: quotes.filter(quote => quote && quote.symbol),
-      errors: errors.filter(error => error.symbol && error.error),
-    };
-  }
-
+  return results
+    .filter(result => result && typeof result === 'object')
+    .map(result => ({
+      symbol: String(result.symbol || '').toUpperCase(),
+      name: String(result.name || ''),
+      type: String(result.type || 'Equity'),
+      region: String(result.region || 'Unknown'),
+      currency: String(result.currency || 'USD'),
+    }))
+    .filter(result => result.symbol.length > 0);
+}
+/**
+ * Creates batch quote response
+ */
+static toBatchQuoteResponse(
+  quotes: StockQuoteDTO[], 
+  errors: Array<{ symbol: string; error: string }>
+): BatchStockQuoteResponseDTO {
+  return {
+    quotes: quotes.filter(quote => quote && quote.symbol),
+    errors: errors.filter(error => error && error.symbol && error.error),
+  };
+}
   /**
    * Sanitizes and validates symbol input
    */
@@ -139,20 +143,20 @@ export class StockMapper {
     return symbol.trim().toUpperCase().replace(/[^A-Z]/g, '');
   }
 
-  /**
-   * Validates stock quote data
-   */
-  static validateStockQuote(quote: any): quote is StockQuote {
-    return (
-      quote &&
-      typeof quote.symbol === 'string' &&
-      typeof quote.price === 'number' &&
-      typeof quote.lastUpdated === 'string' &&
-      quote.symbol.length > 0 &&
-      quote.price > 0
-    );
-  }
-
+/**
+ * Validates stock quote data
+ */
+static validateStockQuote(quote: any): quote is StockQuote {
+  return (
+    quote != null && // Checks for both null and undefined
+    typeof quote === 'object' &&
+    typeof quote.symbol === 'string' &&
+    typeof quote.price === 'number' &&
+    typeof quote.lastUpdated === 'string' &&
+    quote.symbol.length > 0 &&
+    quote.price > 0
+  );
+}
   /**
    * Converts price data to chart format
    */
@@ -225,20 +229,20 @@ export class StockMapper {
     return indicators;
   }
 
-  /**
-   * Formats stock data for export
-   */
-  static toExportFormat(quote: StockQuoteDTO): Record<string, any> {
-    return {
-      Symbol: quote.symbol,
-      Price: quote.price,
-      Change: quote.change || 0,
-      'Change %': quote.changePercent || 0,
-      High: quote.high || '',
-      Low: quote.low || '',
-      Open: quote.open || '',
-      Volume: quote.volume || '',
-      'Last Updated': quote.lastUpdated,
-    };
-  }
+/**
+ * Formats stock data for export
+ */
+static toExportFormat(quote: StockQuoteDTO): Record<string, any> {
+  return {
+    Symbol: quote.symbol,
+    Price: quote.price,
+    Change: quote.change ?? 0,  // Use nullish coalescing instead of ||
+    'Change %': quote.changePercent ?? 0,
+    High: quote.high ?? '',
+    Low: quote.low ?? '',
+    Open: quote.open ?? '',
+    Volume: quote.volume ?? '',  // This will preserve 0 but replace undefined/null with ''
+    'Last Updated': quote.lastUpdated,
+  };
+}
 }
